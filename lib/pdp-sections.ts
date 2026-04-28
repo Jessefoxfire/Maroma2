@@ -1,0 +1,83 @@
+import { decodeBasicHtmlEntities } from "./decode-html-entities";
+import type { ProductRecord } from "./product-types";
+
+const normalizeNewlines = (text: string): string =>
+  decodeBasicHtmlEntities(text || "")
+    .replace(/\\n/g, "\n")
+    .replace(/\r\n/g, "\n")
+    .trim();
+
+const sliceAfter = (text: string, marker: string): string => {
+  const index = text.indexOf(marker);
+  if (index === -1) {
+    return "";
+  }
+  return text.slice(index + marker.length).trim();
+};
+
+const sliceUntil = (text: string, markers: string[]): string => {
+  let shortest = text.length;
+  for (const marker of markers) {
+    const index = text.indexOf(marker);
+    if (index !== -1 && index < shortest) {
+      shortest = index;
+    }
+  }
+  return text.slice(0, shortest).trim();
+};
+
+export type PdpAccordionSections = {
+  description: string;
+  ingredients: string;
+  benefits: string;
+};
+
+export function derivePdpSections(product: ProductRecord): PdpAccordionSections {
+  const body = normalizeNewlines(product.description);
+  const short = normalizeNewlines(product.shortDescription);
+
+  let benefits = "";
+  if (body.includes("BENEFITS")) {
+    const after = sliceAfter(body, "BENEFITS");
+    benefits = sliceUntil(after, ["HOW TO USE", "FULL INGREDIENT LIST", "INGREDIENT LIST"]).trim();
+  }
+
+  let ingredients = "";
+  if (body.includes("FULL INGREDIENT LIST")) {
+    ingredients = sliceAfter(body, "FULL INGREDIENT LIST").trim();
+  } else if (body.includes("INGREDIENT LIST")) {
+    ingredients = sliceAfter(body, "INGREDIENT LIST").trim();
+  }
+
+  let description = short;
+  if (body) {
+    let intro = body;
+    if (body.includes("BENEFITS")) {
+      intro = body.slice(0, body.indexOf("BENEFITS")).trim();
+    }
+    if (intro && intro.length > 40) {
+      description = short ? `${short}\n\n${intro}` : intro;
+    } else if (!short && body) {
+      description = body;
+    }
+  }
+
+  if (!benefits && body) {
+    benefits = sliceUntil(body, ["HOW TO USE", "FULL INGREDIENT LIST"]).slice(0, 900).trim();
+  }
+  if (!benefits) {
+    benefits = "See the description for how this product supports your routine.";
+  }
+
+  if (!ingredients) {
+    const key = product.attributes["Key Ingredients"] ?? product.attributes["Ingredients"];
+    if (key && key.length > 0) {
+      ingredients = key.join(", ");
+    }
+  }
+  if (!ingredients) {
+    ingredients = "Full INCI is printed on the product label and available from Maroma.";
+  }
+
+  return { description, ingredients, benefits };
+}

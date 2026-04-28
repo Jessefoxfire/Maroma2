@@ -1,0 +1,58 @@
+{
+  "banners": {
+    "face-care": {
+      "imageUrl": "/staging-media/admin-category-banners/face-care-1776928521609.png",
+      "updatedAt": "2026-04-23T07:15:42.660Z",
+      "heroTitle": "Love Your Skin",
+      "heroTagline": "Because your skin deserves to feel happy, balanced, and naturally glowing.",
+      "objectPosition": "82% 71%",
+      "minHeight": "clamp(220px, 34vw, 400px)",
+      "maxHeight": "min(48vh, 440px)"
+    },
+    "body-care": {
+      "imageUrl": "/staging-media/admin-category-banners/body-care-1776932025032.png",
+      "updatedAt": "2026-04-23T08:13:55.593Z",
+      "heroTitle": "Body Care",
+      "heroTagline": "Body washes, soaps, oils, and nourishing care essentials.",
+      "objectPosition": "82% 65%",
+      "minHeight": "clamp(220px, 34vw, 400px)",
+      "maxHeight": "min(48vh, 440px)"
+    },
+    "hair-care": {
+      "imageUrl": "/staging-media/admin-category-banners/hair-care-1776932050901.png",
+      "updatedAt": "2026-04-23T08:14:22.633Z",
+      "heroTitle": "Hair Care",
+      "heroTagline": "Shampoos, conditioners, and hair rituals made with natural ingredients.",
+      "objectPosition": "82% 0%",
+      "minHeight": "clamp(220px, 34vw, 400px)",
+      "maxHeight": "min(48vh, 440px)"
+    },
+    "perfumes": {
+      "imageUrl": "/staging-media/admin-category-banners/perfumes-1776932080574.png",
+      "updatedAt": "2026-04-23T08:14:44.651Z",
+      "heroTitle": "Perfumes",
+      "heroTagline": "Fine fragrances and aromatics designed around mood and memory.",
+      "objectPosition": "82% 38%",
+      "minHeight": "clamp(220px, 34vw, 400px)",
+      "maxHeight": "min(48vh, 440px)"
+    },
+    "home-essentials": {
+      "imageUrl": "/staging-media/admin-category-banners/home-essentials-1776932101259.png",
+      "updatedAt": "2026-04-23T08:15:16.320Z",
+      "heroTitle": "Home Essentials",
+      "heroTagline": "Incense, candles, and ambient rituals for your space.",
+      "objectPosition": "100% 70%",
+      "minHeight": "clamp(220px, 34vw, 400px)",
+      "maxHeight": "min(48vh, 440px)"
+    },
+    "gifting": {
+      "imageUrl": "/staging-media/admin-category-banners/gifting-1776932133753.png",
+      "updatedAt": "2026-04-23T08:15:49.339Z",
+      "heroTitle": "Gifting",
+      "heroTagline": "Gift-ready selections and curated wellbeing sets.",
+      "objectPosition": "62% 63%",
+      "minHeight": "clamp(220px, 34vw, 400px)",
+      "maxHeight": "min(48vh, 440px)"
+    }
+  }
+}

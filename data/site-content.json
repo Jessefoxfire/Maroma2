@@ -1,0 +1,63 @@
+{
+  "brand": "Maroma",
+  "nav": [
+    "Home",
+    "Face Care",
+    "Body Care",
+    "Hair Care",
+    "Perfumes",
+    "Home Essentials",
+    "Gifting"
+  ],
+  "hero": {
+    "eyebrow": "Conscious luxury",
+    "headline": "BOTANICAL. ETHICAL. ESSENTIAL",
+    "subhead": "",
+    "ctaPrimary": "Shop Luxury",
+    "ctaSecondary": "Discover Rituals",
+    "video": {
+      "src": "",
+      "poster": "",
+      "caption": "Add hero video in Admin content"
+    },
+    "phrases": []
+  },
+  "carousel": {
+    "title": "Loved for a reason",
+    "subtitle": "Our bestsellers bring balance and well-being.",
+    "slides": [
+      {
+        "label": "Face Serum",
+        "description": "Nourishing botanical serum for smooth, radiant skin.",
+        "image": "/staging-media/wp-content/uploads/2025/12/auroville-maroma-body-care-saffron-serum-01.jpg",
+        "color": "#f2eee8"
+      },
+      {
+        "label": "Aromatherapy",
+        "description": "Mood-led aromatherapy spray designed to clear and uplift.",
+        "image": "/staging-media/wp-content/uploads/2025/08/auroville-maroma-body-care-aromatherapy-100-natural-clear-mind-body-spray-10ml-01.webp",
+        "color": "#f6f1ec"
+      },
+      {
+        "label": "Incense",
+        "description": "Clean-burning incense blends to ground your evening ritual.",
+        "image": "/staging-media/wp-content/uploads/2025/09/Cedarwood-Incense-01.webp",
+        "color": "#f4efe9"
+      }
+    ]
+  },
+  "highlights": [
+    {
+      "title": "Vegan and cruelty-free",
+      "detail": "No synthetics, no palm oil. Ever."
+    },
+    {
+      "title": "Small batch",
+      "detail": "Hand-finished in Auroville."
+    },
+    {
+      "title": "Mood-led navigation",
+      "detail": "Shop by Calm, Focus, Uplift, Sensual, Ground."
+    }
+  ]
+}
