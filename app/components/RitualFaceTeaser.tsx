@@ -1,14 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { decodeBasicHtmlEntities } from "../../lib/decode-html-entities";
 import { selectFaceCareProducts } from "../../lib/face-products";
-import {
-  parseRitualTeaserPos,
-  RITUAL_TEASER_POS_STORAGE_KEY,
-  type RitualTeaserPos
-} from "../../lib/ritual-teaser-pos";
+import { type RitualTeaserPos } from "../../lib/ritual-teaser-pos";
 import { getDisplayImageUrl, hasDisplayImage } from "../../lib/product-image";
 import type { ProductRecord } from "../../lib/product-types";
 
@@ -16,6 +12,7 @@ type Props = {
   products: ProductRecord[];
   position?: { x: number; y: number };
   onPositionChange?: (next: { x: number; y: number }) => void;
+  onPositionCommit?: (next: { x: number; y: number }) => void;
 };
 
 
@@ -26,35 +23,7 @@ const isDragExempt = (target: EventTarget | null): boolean => {
   return Boolean(target.closest("a, button, input, select, textarea, label"));
 };
 
-const clampOnce = (panel: HTMLElement, pos: RitualTeaserPos): RitualTeaserPos => {
-  if (typeof window === "undefined") {
-    return pos;
-  }
-  const strip = panel.querySelector(".ritual-face-triple-stage");
-  const boundsEl = strip instanceof HTMLElement ? strip : panel;
-  const pr = boundsEl.getBoundingClientRect();
-  const m = 0;
-  const nav = document.querySelector(".nav");
-  const navBottom =
-    nav instanceof HTMLElement ? Math.max(nav.getBoundingClientRect().bottom, 0) : 0;
-  const topMin = navBottom > 0 ? navBottom + 8 : m;
-  let { x, y } = pos;
-  if (pr.left < m) {
-    x += m - pr.left;
-  }
-  if (pr.right > window.innerWidth - m) {
-    x += window.innerWidth - m - pr.right;
-  }
-  if (pr.top < topMin) {
-    y += topMin - pr.top;
-  }
-  if (pr.bottom > window.innerHeight - m) {
-    y += window.innerHeight - m - pr.bottom;
-  }
-  return { x, y };
-};
-
-export function RitualFaceTeaser({ products, position, onPositionChange }: Props) {
+export function RitualFaceTeaser({ products, position, onPositionChange, onPositionCommit }: Props) {
 
   const visibleTiles = 6;
   const rotationMs = 3800;
@@ -79,91 +48,22 @@ export function RitualFaceTeaser({ products, position, onPositionChange }: Props
 
   const [start, setStart] = useState(0);
   const [isSliding, setIsSliding] = useState(false);
-  const [pos, setPos] = useState<RitualTeaserPos>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const stored = window.localStorage.getItem(RITUAL_TEASER_POS_STORAGE_KEY);
-        if (stored) {
-          return JSON.parse(stored);
-        }
-      } catch {}
-    }
-    return position ?? { x: 0, y: 0 };
-  });
+  const pos = position ?? { x: 0, y: 0 };
 
   const [focusMap, setFocusMap] = useState<Record<string, number>>({});
-  const panelRef = useRef<HTMLDivElement | null>(null);
-  const posRef = useRef<RitualTeaserPos>({ x: 0, y: 0 });
   const dragStart = useRef<{ clientX: number; clientY: number } | null>(null);
   const posAtDrag = useRef<RitualTeaserPos>({ x: 0, y: 0 });
   const resetSlideTimer = useRef<number | null>(null);
-
-  useEffect(() => {
-    posRef.current = pos;
-    // Persist to localStorage on every change
-    try {
-      window.localStorage.setItem(RITUAL_TEASER_POS_STORAGE_KEY, JSON.stringify(pos));
-    } catch {}
-  }, [pos]);
-
-  useEffect(() => {
-    if (position) {
-      posRef.current = position;
-      setPos(position);
-    }
-  }, [position]);
 
 
   const persistPos = useCallback((next: RitualTeaserPos) => {
     onPositionChange?.({ x: Math.round(next.x), y: Math.round(next.y) });
   }, [onPositionChange]);
 
+  const commitPos = useCallback((next: RitualTeaserPos) => {
+    onPositionCommit?.({ x: Math.round(next.x), y: Math.round(next.y) });
+  }, [onPositionCommit]);
 
-  const runClampChain = useCallback(() => {
-    const resolve = (iter: number) => {
-      const el = panelRef.current;
-      if (!el || iter > 14) {
-        persistPos(posRef.current);
-        return;
-      }
-      const cur = posRef.current;
-      const next = clampOnce(el, cur);
-      const delta = Math.hypot(next.x - cur.x, next.y - cur.y);
-      if (delta < 0.25) {
-        persistPos(cur);
-        return;
-      }
-      posRef.current = next;
-      setPos(next);
-      requestAnimationFrame(() => resolve(iter + 1));
-    };
-    requestAnimationFrame(() => resolve(0));
-  }, [persistPos]);
-
-  // Remove mount-time clamping to prevent scroll jumps
-
-  useEffect(() => {
-    const onReset = () => {
-      const reset = { x: 0, y: 0 };
-      posRef.current = reset;
-      setPos(reset);
-      requestAnimationFrame(() => runClampChain());
-    };
-    window.addEventListener("maroma-ritual-pos-reset", onReset);
-    return () => {
-      window.removeEventListener("maroma-ritual-pos-reset", onReset);
-    };
-  }, [runClampChain]);
-
-
-
-  useEffect(() => {
-    const onResize = () => {
-      runClampChain();
-    };
-    window.addEventListener("resize", onResize, { passive: true });
-    return () => window.removeEventListener("resize", onResize);
-  }, [runClampChain]);
 
   useEffect(() => {
     if (pool.length === 0) {
@@ -328,7 +228,7 @@ export function RitualFaceTeaser({ products, position, onPositionChange }: Props
     event.preventDefault();
     event.stopPropagation();
     dragStart.current = { clientX: event.clientX, clientY: event.clientY };
-    posAtDrag.current = { ...posRef.current };
+    posAtDrag.current = { ...pos };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
@@ -342,31 +242,37 @@ export function RitualFaceTeaser({ products, position, onPositionChange }: Props
       x: posAtDrag.current.x + dx,
       y: posAtDrag.current.y + dy
     };
-    posRef.current = next;
-    setPos(next);
+    persistPos(next);
   };
 
   const handlePanelPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!dragStart.current) {
       return;
     }
+    const dx = event.clientX - dragStart.current.clientX;
+    const dy = event.clientY - dragStart.current.clientY;
+    const next = {
+      x: posAtDrag.current.x + dx,
+      y: posAtDrag.current.y + dy
+    };
+    persistPos(next);
+    commitPos(next);
     dragStart.current = null;
     try {
       event.currentTarget.releasePointerCapture(event.pointerId);
     } catch {
       // ignore
     }
-    runClampChain();
   };
 
   return (
     <div
-      ref={panelRef}
       className="hero-ritual-panel"
       role="group"
       aria-label="Face care — drag from the grip or empty space to move"
       style={{
-        transform: `translate(calc(-50% + ${pos.x}px), calc(-50% + ${pos.y}px - 5vh))`
+        transform: `translate(calc(-50% + ${pos.x}px), calc(-50% + ${pos.y}px - 5vh - 1cm))`,
+        touchAction: "none"
       }}
       onPointerDown={handlePanelPointerDown}
       onPointerMove={handlePanelPointerMove}

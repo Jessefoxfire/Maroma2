@@ -3120,7 +3120,22 @@ img {
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  padding: 20px 0 40px;
+  padding: calc(20px + 1cm) 0 40px;
+}
+
+.scroller-loved-for-a-reason .scroller-header {
+  margin-bottom: 14px;
+  gap: 6px;
+}
+
+.scroller-loved-for-a-reason .scroller-title {
+  font-size: clamp(1.75rem, 3.2vw, 2.75rem);
+  line-height: 1.12;
+}
+
+.scroller-loved-for-a-reason .scroller-subtitle {
+  font-size: 1rem;
+  line-height: 1.35;
 }
 
 .scroller-header {

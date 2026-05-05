@@ -103,10 +103,10 @@ export default function HomePageClient({ initialHeroVisual, initialSiteContent }
   const heroActionsDragStart = useRef<{ x: number; y: number } | null>(null);
   const heroActionsBaseRef = useRef({ x: 0, y: 0 });
   const heroActionsPosRef = useRef(initialHeroVisual.heroActionsPos);
-  const legacyEyebrowPosPx = useRef<{ x: number; y: number } | null>(null);
   const eyebrowRatioRef = useRef(initialHeroVisual.eyebrowPosRatio);
   const floatingPanelDragStart = useRef<{ x: number; y: number } | null>(null);
   const floatingPanelBase = useRef({ x: 0, y: 0 });
+  const lastRitualLocalEditAt = useRef(0);
   const floatingPanelRef = useRef<HTMLDivElement | null>(null);
 
   const clampFloatingPanelPos = useCallback((pos: { x: number; y: number }) => {
@@ -302,7 +302,6 @@ export default function HomePageClient({ initialHeroVisual, initialSiteContent }
         if (data.heroLayout) setHeroLayout(data.heroLayout);
         if (data.headlinePos) setHeadlinePos(data.headlinePos);
         if (data.heroActionsPos) setHeroActionsPos(data.heroActionsPos);
-        if (data.eyebrowPosRatio) setEyebrowPosRatio(data.eyebrowPosRatio);
         if (data.bgColors) setBgColors(data.bgColors);
         if (data.bgAngle) setBgAngle(data.bgAngle);
         if (typeof data.heroSectionHeight === "number") setHeroSectionHeight(data.heroSectionHeight);
@@ -334,71 +333,9 @@ export default function HomePageClient({ initialHeroVisual, initialSiteContent }
     return () => observer.disconnect();
   }, [adminDragEnabled, clampFloatingPanelPos]);
 
-  useEffect(() => {
-    const loadHeroVisualState = async () => {
-      try {
-        const response = await fetch("/api/hero-media-layout", { cache: "no-store" });
-        if (!response.ok) {
-          return;
-        }
-        const data = (await response.json()) as HeroVisualApiState;
-        if (data && !data.error) {
-          if (data.heroLayout) setHeroLayout(data.heroLayout);
-          
-          if (data.headlinePos) {
-            setHeadlinePos(data.headlinePos);
-            basePos.current = data.headlinePos;
-          }
-          
-          if (data.heroActionsPos) {
-            setHeroActionsPos(data.heroActionsPos);
-            heroActionsPosRef.current = data.heroActionsPos;
-          }
-          
-          if (data.ritualCarouselPos) setRitualCarouselPos(data.ritualCarouselPos);
-          
-          if (typeof data.headlineSizeRem === "number") setHeadlineSizeRem(data.headlineSizeRem);
-          
-          if (data.eyebrowPosRatio) {
-            setEyebrowPosRatio(data.eyebrowPosRatio);
-            eyebrowRatioRef.current = data.eyebrowPosRatio;
-          }
-          
-          if (typeof data.heroCopyWidthVw === "number") setHeroCopyWidthVw(data.heroCopyWidthVw);
-          
-          if (data.layout) {
-            setHeroMediaLayout(data.layout);
-            mediaBaseLayout.current = data.layout;
-          }
-          
-          if (data.primarySettings) setHeroPrimarySettings(data.primarySettings);
-          if (data.overlayLayer) setHeroOverlayLayer(data.overlayLayer);
-          if (data.bgColors) setBgColors(data.bgColors);
-          if (typeof data.bgAngle === "number") setBgAngle(data.bgAngle);
-          if (data.productShowcasePos) setProductShowcasePos(data.productShowcasePos);
-          if (typeof data.heroSectionHeight === "number") setHeroSectionHeight(data.heroSectionHeight);
-        }
-
-
-
-
-      } catch {
-        // Keep current layout when unavailable.
-      }
-    };
-    const onResume = () => {
-      if (document.visibilityState === "visible") {
-        void loadHeroVisualState();
-      }
-    };
-    const onFocus = () => void loadHeroVisualState();
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onResume);
-    return () => {
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onResume);
-    };
-  }, []);
+  // Intentionally skip async visual-state rehydrate in preview/editor mode.
+  // The page is already initialized from server props and local backup;
+  // late async payloads can overwrite in-progress edits and cause snap-back.
 
   useEffect(() => {
     eyebrowRatioRef.current = eyebrowPosRatio;
@@ -425,17 +362,6 @@ export default function HomePageClient({ initialHeroVisual, initialSiteContent }
     observer.observe(element);
     return () => observer.disconnect();
   }, [content, heroCopyWidthVw]);
-
-  useEffect(() => {
-    if (!legacyEyebrowPosPx.current) {
-      return;
-    }
-    setEyebrowPosRatio({
-      x: legacyEyebrowPosPx.current.x / heroCopySize.width,
-      y: legacyEyebrowPosPx.current.y / heroCopySize.height
-    });
-    legacyEyebrowPosPx.current = null;
-  }, [heroCopySize]);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLHeadingElement>) => {
     if (!adminDragEnabled) {
@@ -555,6 +481,22 @@ export default function HomePageClient({ initialHeroVisual, initialSiteContent }
     y: eyebrowPosRatio.y * heroCopySize.height
   };
 
+  const setEyebrowXFromPx = useCallback((nextX: number) => {
+    const nextRatio = { ...eyebrowRatioRef.current, x: nextX / (heroCopySize.width || 1) };
+    eyebrowRatioRef.current = nextRatio;
+    setEyebrowPosRatio(nextRatio);
+  }, [heroCopySize.width]);
+
+  const setEyebrowYFromPx = useCallback((nextY: number) => {
+    const nextRatio = { ...eyebrowRatioRef.current, y: nextY / (heroCopySize.height || 1) };
+    eyebrowRatioRef.current = nextRatio;
+    setEyebrowPosRatio(nextRatio);
+  }, [heroCopySize.height]);
+
+  const commitEyebrowRatio = useCallback(() => {
+    void persistHeroVisualPatch({ eyebrowPosRatio: eyebrowRatioRef.current });
+  }, []);
+
   const persistHeroVisualPatch = async (patch: HeroVisualApiState) => {
     try {
       await fetch("/api/hero-media-layout", {
@@ -578,6 +520,7 @@ export default function HomePageClient({ initialHeroVisual, initialSiteContent }
       heroLayout,
       headlinePos,
       heroActionsPos,
+      ritualCarouselPos,
       eyebrowPosRatio,
       bgColors,
       bgAngle,
@@ -630,7 +573,6 @@ export default function HomePageClient({ initialHeroVisual, initialSiteContent }
       content
     };
     void navigator.clipboard.writeText(JSON.stringify(config, null, 2));
-    alert("Configuration copied to clipboard! Paste it into the chat.");
   };
 
   const clampLayout = (layout: HeroMediaLayout): HeroMediaLayout => {
@@ -764,6 +706,12 @@ export default function HomePageClient({ initialHeroVisual, initialSiteContent }
   };
 
   const handleRitualPositionChange = useCallback((next: { x: number; y: number }) => {
+    lastRitualLocalEditAt.current = Date.now();
+    setRitualCarouselPos(next);
+  }, []);
+
+  const handleRitualPositionCommit = useCallback((next: { x: number; y: number }) => {
+    lastRitualLocalEditAt.current = Date.now();
     setRitualCarouselPos(next);
     void persistHeroVisualPatch({ ritualCarouselPos: next });
   }, []);
@@ -1082,6 +1030,7 @@ export default function HomePageClient({ initialHeroVisual, initialSiteContent }
           products={products}
           position={ritualCarouselPos}
           onPositionChange={handleRitualPositionChange}
+          onPositionCommit={handleRitualPositionCommit}
         />
       </section>
 
@@ -1227,7 +1176,7 @@ export default function HomePageClient({ initialHeroVisual, initialSiteContent }
             {adminDragEnabled ? (
               <>
             <label className="floating-admin-upload">
-              Upload image/video for selected layer
+              Upload image/video for selected media layer
               <input
                 type="file"
                 accept="image/*,video/*"
@@ -1235,16 +1184,6 @@ export default function HomePageClient({ initialHeroVisual, initialSiteContent }
               />
             </label>
             <div className="floating-admin-grid">
-              <label className="floating-admin-select-group">
-                Layer
-                <select
-                  value={selectedHeroLayer}
-                  onChange={(event) => setSelectedHeroLayer(event.target.value as HeroLayerId)}
-                >
-                  <option value="overlay">Overlay image (middle)</option>
-                  <option value="primary">Primary media (front)</option>
-                </select>
-              </label>
               <span className="floating-admin-hint" style={{ color: "var(--soft-ink)" }}>
                 Primary draws on top. If the scene looks zoomed full-width, open Primary and reduce W/H (it is often
                 100% while Overlay is smaller).
@@ -1294,7 +1233,13 @@ export default function HomePageClient({ initialHeroVisual, initialSiteContent }
                 Select Layer
                 <select
                   value={adminEditLayer}
-                  onChange={(e) => setAdminEditLayer(e.target.value as AdminLayerId)}
+                  onChange={(e) => {
+                    const next = e.target.value as AdminLayerId;
+                    setAdminEditLayer(next);
+                    if (next === "primary" || next === "overlay") {
+                      setSelectedHeroLayer(next);
+                    }
+                  }}
                 >
                   <option value="primary">Primary Media</option>
                   <option value="overlay">Overlay Media</option>
@@ -1380,18 +1325,8 @@ export default function HomePageClient({ initialHeroVisual, initialSiteContent }
               )}
               {adminEditLayer === "eyebrow" && (
                 <>
-                  <label>X <input type="range" min={-1000} max={1000} step={1} value={eyebrowPos.x} onChange={e => { 
-                    const nextX = Number(e.target.value);
-                    const nextRatio = { ...eyebrowPosRatio, x: nextX / (heroCopySize.width || 1) };
-                    setEyebrowPosRatio(nextRatio); 
-                    void persistHeroVisualPatch({eyebrowPosRatio: nextRatio}); 
-                  }} /> <span>{Math.round(eyebrowPos.x)}px</span></label>
-                  <label>Y <input type="range" min={-1000} max={1000} step={1} value={eyebrowPos.y} onChange={e => { 
-                    const nextY = Number(e.target.value);
-                    const nextRatio = { ...eyebrowPosRatio, y: nextY / (heroCopySize.height || 1) };
-                    setEyebrowPosRatio(nextRatio); 
-                    void persistHeroVisualPatch({eyebrowPosRatio: nextRatio}); 
-                  }} /> <span>{Math.round(eyebrowPos.y)}px</span></label>
+                  <label>X <input type="range" min={-1000} max={1000} step={1} value={eyebrowPos.x} onChange={e => setEyebrowXFromPx(Number(e.target.value))} onMouseUp={commitEyebrowRatio} onTouchEnd={commitEyebrowRatio} onPointerUp={commitEyebrowRatio} /> <span>{Math.round(eyebrowPos.x)}px</span></label>
+                  <label>Y <input type="range" min={-1000} max={1000} step={1} value={eyebrowPos.y} onChange={e => setEyebrowYFromPx(Number(e.target.value))} onMouseUp={commitEyebrowRatio} onTouchEnd={commitEyebrowRatio} onPointerUp={commitEyebrowRatio} /> <span>{Math.round(eyebrowPos.y)}px</span></label>
                 </>
               )}
               {adminEditLayer === "actions" && (
@@ -1400,10 +1335,11 @@ export default function HomePageClient({ initialHeroVisual, initialSiteContent }
                   <label>Y <input type="range" min={-1000} max={1000} step={1} value={heroActionsPos.y} onChange={e => { const next = {...heroActionsPos, y: Number(e.target.value)}; setHeroActionsPos(next); void persistHeroVisualPatch({heroActionsPos: next}); }} /> <span>{heroActionsPos.y}px</span></label>
                 </>
               )}
+
               {adminEditLayer === "rituals" && (
                 <>
-                  <label>X <input type="range" min={-1000} max={1000} step={1} value={ritualCarouselPos.x} onChange={e => { const next = {...ritualCarouselPos, x: Number(e.target.value)}; setRitualCarouselPos(next); void persistHeroVisualPatch({ritualCarouselPos: next}); }} /> <span>{ritualCarouselPos.x}px</span></label>
-                  <label>Y <input type="range" min={-1000} max={1000} step={1} value={ritualCarouselPos.y} onChange={e => { const next = {...ritualCarouselPos, y: Number(e.target.value)}; setRitualCarouselPos(next); void persistHeroVisualPatch({ritualCarouselPos: next}); }} /> <span>{ritualCarouselPos.y}px</span></label>
+                  <label>X <input type="range" min={-1000} max={1000} step={1} value={ritualCarouselPos?.x ?? 0} onChange={e => { const next = { x: Number(e.target.value), y: ritualCarouselPos?.y ?? 0 }; lastRitualLocalEditAt.current = Date.now(); setRitualCarouselPos(next); void persistHeroVisualPatch({ ritualCarouselPos: next }); }} /> <span>{ritualCarouselPos?.x ?? 0}px</span></label>
+                  <label>Y <input type="range" min={-1000} max={1000} step={1} value={ritualCarouselPos?.y ?? 0} onChange={e => { const next = { x: ritualCarouselPos?.x ?? 0, y: Number(e.target.value) }; lastRitualLocalEditAt.current = Date.now(); setRitualCarouselPos(next); void persistHeroVisualPatch({ ritualCarouselPos: next }); }} /> <span>{ritualCarouselPos?.y ?? 0}px</span></label>
                 </>
               )}
             </div>
@@ -1429,13 +1365,38 @@ export default function HomePageClient({ initialHeroVisual, initialSiteContent }
               className="button secondary"
               onClick={() => {
                 const reset = { x: 0, y: 0 };
+                lastRitualLocalEditAt.current = Date.now();
                 setRitualCarouselPos(reset);
-                window.dispatchEvent(new Event("maroma-ritual-pos-reset"));
                 void persistHeroVisualPatch({ ritualCarouselPos: reset });
               }}
 
             >
               Reset carousel position
+            </button>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => {
+                const reset = { x: 0, y: 0 };
+                eyebrowRatioRef.current = reset;
+                setEyebrowPosRatio(reset);
+                void persistHeroVisualPatch({ eyebrowPosRatio: reset });
+              }}
+            >
+              Clear saved eyebrow position
+            </button>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => {
+                const reset = { x: 0, y: 0 };
+                lastRitualLocalEditAt.current = Date.now();
+                setRitualCarouselPos(reset);
+                window.localStorage.removeItem(RITUAL_TEASER_POS_STORAGE_KEY);
+                void persistHeroVisualPatch({ ritualCarouselPos: reset });
+              }}
+            >
+              Clear saved carousel position
             </button>
           </>
         )}
